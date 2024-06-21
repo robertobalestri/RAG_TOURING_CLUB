@@ -1,3 +1,7 @@
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
 import streamlit as st
 import os
 from llama_index.llms.azure_openai import AzureOpenAI
@@ -7,10 +11,6 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 import chromadb
 import agentops
 from llama_index.embeddings.cohere import CohereEmbedding
-
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 def main():
     st.title("Il tuo itinerario in Campania")
