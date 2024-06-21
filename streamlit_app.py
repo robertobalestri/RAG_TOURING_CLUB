@@ -8,6 +8,10 @@ import chromadb
 import agentops
 from llama_index.embeddings.cohere import CohereEmbedding
 
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
 def main():
     st.title("Il tuo itinerario in Campania")
 

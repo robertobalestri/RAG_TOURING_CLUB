@@ -6,3 +6,4 @@ llama-index-embeddings-cohere
 streamlit
 python-dotenv
 agentops
+pysqlite3-binary
