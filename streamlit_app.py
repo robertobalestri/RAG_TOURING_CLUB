@@ -68,12 +68,13 @@ def main():
     Settings.llm = llm
     Settings.embed_model = embed_model
 
-    # Load documents
-    parser = PDFReader()
-    file_extractor = {".pdf": parser}
-    documents = SimpleDirectoryReader(
-        "./content/Documents", file_extractor=file_extractor
-    ).load_data()
+    if not ON_STREAMLIT_CLOUD:
+        # Load documents
+        parser = PDFReader()
+        file_extractor = {".pdf": parser}
+        documents = SimpleDirectoryReader(
+            "./content/Documents", file_extractor=file_extractor
+        ).load_data()
 
     # Create ChromaDB client and collection
     db = chromadb.PersistentClient(path="./chroma_db")
@@ -91,21 +92,23 @@ def main():
         )
         print("Index loaded from storage.")
     except Exception as e:
-        st.write(f"Failed to load index from storage: {e}")
+        print(f"Failed to load index from storage: {e}")
+        st.write("Qualcosa è andato storto. Riprova più tardi.")
+        
+        if not ON_STREAMLIT_CLOUD:
+            chroma_collection = db.get_or_create_collection("quickstart")
 
-        chroma_collection = db.get_or_create_collection("quickstart")
+            vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+            storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-        # Create the index from documents if it doesn't exist
-        vector_store_index = VectorStoreIndex.from_documents(
-            documents,
-            storage_context=storage_context,
-            embed_model=embed_model,
-            show_progress=True,
-        )
-        print(f"Index created and stored in: ./chroma_db")
+            # Create the index from documents if it doesn't exist
+            vector_store_index = VectorStoreIndex.from_documents(
+                documents,
+                storage_context=storage_context,
+                embed_model=embed_model,
+                show_progress=True,
+            )
+            print(f"Index created and stored in: ./chroma_db")
 
     try:
         chat_engine = vector_store_index.as_chat_engine(
