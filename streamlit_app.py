@@ -8,13 +8,14 @@ if ON_STREAMLIT_CLOUD:
 
 import streamlit as st
 import os
+from dotenv import load_dotenv
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.core import SimpleDirectoryReader, Settings, VectorStoreIndex, StorageContext
+from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.readers.file import PDFReader
 from llama_index.vector_stores.chroma import ChromaVectorStore
 import chromadb
-from llama_index.embeddings.cohere import CohereEmbedding
-from dotenv import load_dotenv
+import agentops
 
 if not ON_STREAMLIT_CLOUD:
     load_dotenv()
@@ -42,14 +43,16 @@ def main():
 
     st.title("Il tuo itinerario in Campania")
 
+    agentops.init("23665bf9-9e0a-4e1a-a8ad-237dca67e0cb")
+
     # Configure Azure OpenAI
     llm = AzureOpenAI(
-        engine=st.secrets["AZURE_OPENAI_LLM_DEPLOYMENT_NAME"] if ON_STREAMLIT_CLOUD else os.getenv("AZURE_OPENAI_LLM_DEPLOYMENT_NAME"),
+        engine=st.secrets["AZURE_OPENAI_LLM_DEPLOYMENT_NAME"] if ON_STREAMLIT_CLOUD else os.getenv('AZURE_OPENAI_LLM_DEPLOYMENT_NAME'),
         model="gpt-4o",
         temperature=0.0,
-        azure_endpoint=st.secrets["AZURE_OPENAI_API_ENDPOINT"] if ON_STREAMLIT_CLOUD else os.getenv("AZURE_OPENAI_API_ENDPOINT"),
-        api_key=st.secrets["AZURE_OPENAI_API_KEY"] if ON_STREAMLIT_CLOUD else os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version=st.secrets["AZURE_OPENAI_API_VERSION"] if ON_STREAMLIT_CLOUD else os.getenv("AZURE_OPENAI_API_VERSION"),
+        azure_endpoint=st.secrets["AZURE_OPENAI_API_ENDPOINT"] if ON_STREAMLIT_CLOUD else os.getenv('AZURE_OPENAI_API_ENDPOINT'),
+        api_key=st.secrets["AZURE_OPENAI_API_KEY"] if ON_STREAMLIT_CLOUD else os.getenv('AZURE_OPENAI_API_KEY'),
+        api_version=st.secrets["AZURE_OPENAI_API_VERSION"] if ON_STREAMLIT_CLOUD else os.getenv('AZURE_OPENAI_API_VERSION'),
     )
 
     cohere_api_key = st.secrets["COHERE_API_KEY"] if ON_STREAMLIT_CLOUD else os.getenv("COHERE_API_KEY")
@@ -65,13 +68,12 @@ def main():
     Settings.llm = llm
     Settings.embed_model = embed_model
 
-    if not ON_STREAMLIT_CLOUD:
-        # Load documents
-        parser = PDFReader()
-        file_extractor = {".pdf": parser}
-        documents = SimpleDirectoryReader(
-            "./content/Documents", file_extractor=file_extractor
-        ).load_data()
+    # Load documents
+    parser = PDFReader()
+    file_extractor = {".pdf": parser}
+    documents = SimpleDirectoryReader(
+        "./content/Documents", file_extractor=file_extractor
+    ).load_data()
 
     # Create ChromaDB client and collection
     db = chromadb.PersistentClient(path="./chroma_db")
@@ -87,26 +89,23 @@ def main():
             vector_store,
             embed_model=embed_model,
         )
+        print("Index loaded from storage.")
     except Exception as e:
-        print(f"Failed to load index from storage: {e}")
-        
-        st.write("Qualcosa è andato storto :(")
+        st.write(f"Failed to load index from storage: {e}")
 
-        if not ON_STREAMLIT_CLOUD:
-            chroma_collection = db.get_or_create_collection("quickstart")
-            st.write("Chroma collection: ", str(chroma_collection))
+        chroma_collection = db.get_or_create_collection("quickstart")
 
-            vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-            # Create the index from documents if it doesn't exist
-            vector_store_index = VectorStoreIndex.from_documents(
-                documents,
-                storage_context=storage_context,
-                embed_model=embed_model,
-                show_progress=True,
-            )
-            st.write(f"Index created and stored in: ./chroma_db")
+        # Create the index from documents if it doesn't exist
+        vector_store_index = VectorStoreIndex.from_documents(
+            documents,
+            storage_context=storage_context,
+            embed_model=embed_model,
+            show_progress=True,
+        )
+        print(f"Index created and stored in: ./chroma_db")
 
     try:
         chat_engine = vector_store_index.as_chat_engine(
@@ -153,7 +152,7 @@ def main():
                 margin-bottom: 10px;
             }
             .markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 {
-                color: black;
+                color: black !important;
             }
             </style>
             """,
@@ -164,9 +163,9 @@ def main():
             st.write("Cronologia chat:")
             for sender, message in st.session_state.chat_history:
                 if sender == "user":
-                    st.markdown(f'<div class="user-message">{message}</div>', unsafe_allow_html=True)
+                    st.markdown(f'''<div class="user-message">{message}</div>''', unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<div class="machine-message">{message}</div>', unsafe_allow_html=True)
+                    st.markdown(f'''<div class="machine-message">{message}</div>''', unsafe_allow_html=True)
 
             with st.form(key="chat_form"):
                 user_input = st.text_input("Continuare a chattare:", key="chat_input")
@@ -180,9 +179,10 @@ def main():
                         st.experimental_rerun()
 
     except KeyError as e:
-        st.write(f"KeyError: {e} - The specified was not found in the graph indices.")
+        print(f"KeyError: {e} - The specified was not found in the graph indices.")
+        st.write("Qualcosa è andato storto. Riprova più tardi.")
     except Exception as e:
-        st.write(f"An error occurred while creating the chat engine: {e}")
+        print("Qualcosa è andato storto. Riprova più tardi.")
 
 if __name__ == "__main__":
     main()
