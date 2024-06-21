@@ -1,6 +1,10 @@
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# CHANGE IF LOCAL OR CLOUD
+ON_STREAMLIT_CLOUD = False
+
+if ON_STREAMLIT_CLOUD:
+    __import__('pysqlite3')
+    import sys
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 import streamlit as st
 import os
@@ -10,25 +14,47 @@ from llama_index.readers.file import PDFReader
 from llama_index.vector_stores.chroma import ChromaVectorStore
 import chromadb
 from llama_index.embeddings.cohere import CohereEmbedding
+from dotenv import load_dotenv
 
-ON_STREAMLIT_CLOUD = True
+if not ON_STREAMLIT_CLOUD:
+    load_dotenv()
 
 def main():
+    # Password protection
+    def check_password():
+        st.session_state["password_correct"] = False
+        if ON_STREAMLIT_CLOUD:
+            correct_password = st.secrets["APP_PASSWORD"]
+        else:
+            correct_password = os.getenv("APP_PASSWORD")
+        
+        if st.session_state.get("password") == correct_password:
+            st.session_state["password_correct"] = True
+        else:
+            st.warning("Incorrect password")
+
+    if "password_correct" not in st.session_state:
+        st.session_state["password_correct"] = False
+
+    if not st.session_state["password_correct"]:
+        st.text_input("Password", type="password", on_change=check_password, key="password")
+        return
+
     st.title("Il tuo itinerario in Campania")
 
     # Configure Azure OpenAI
     llm = AzureOpenAI(
-        engine=st.secrets["AZURE_OPENAI_LLM_DEPLOYMENT_NAME"],
+        engine=st.secrets["AZURE_OPENAI_LLM_DEPLOYMENT_NAME"] if ON_STREAMLIT_CLOUD else os.getenv("AZURE_OPENAI_LLM_DEPLOYMENT_NAME"),
         model="gpt-4o",
         temperature=0.0,
-        azure_endpoint=st.secrets["AZURE_OPENAI_API_ENDPOINT"],
-        api_key=st.secrets["AZURE_OPENAI_API_KEY"],
-        api_version=st.secrets["AZURE_OPENAI_API_VERSION"],
+        azure_endpoint=st.secrets["AZURE_OPENAI_API_ENDPOINT"] if ON_STREAMLIT_CLOUD else os.getenv("AZURE_OPENAI_API_ENDPOINT"),
+        api_key=st.secrets["AZURE_OPENAI_API_KEY"] if ON_STREAMLIT_CLOUD else os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version=st.secrets["AZURE_OPENAI_API_VERSION"] if ON_STREAMLIT_CLOUD else os.getenv("AZURE_OPENAI_API_VERSION"),
     )
 
-    cohere_api_key = st.secrets["COHERE_API_KEY"]
+    cohere_api_key = st.secrets["COHERE_API_KEY"] if ON_STREAMLIT_CLOUD else os.getenv("COHERE_API_KEY")
 
-    # with input_typ='search_query'
+    # Configure the embedding model
     embed_model = CohereEmbedding(
         api_key=cohere_api_key,
         model_name="embed-multilingual-v3.0",
@@ -61,9 +87,10 @@ def main():
             vector_store,
             embed_model=embed_model,
         )
-        st.write("Index loaded from storage.")
     except Exception as e:
-        st.write(f"Failed to load index from storage: {e}")
+        print(f"Failed to load index from storage: {e}")
+        
+        st.write("Qualcosa è andato storto :(")
 
         if not ON_STREAMLIT_CLOUD:
             chroma_collection = db.get_or_create_collection("quickstart")
