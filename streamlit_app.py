@@ -9,13 +9,10 @@ from llama_index.core import SimpleDirectoryReader, Settings, VectorStoreIndex, 
 from llama_index.readers.file import PDFReader
 from llama_index.vector_stores.chroma import ChromaVectorStore
 import chromadb
-import agentops
 from llama_index.embeddings.cohere import CohereEmbedding
 
 def main():
     st.title("Il tuo itinerario in Campania")
-
-    agentops.init(st.secrets["agentops_api_key"])
 
     # Configure Azure OpenAI
     llm = AzureOpenAI(
