@@ -16,15 +16,15 @@ def main():
 
     # Configure Azure OpenAI
     llm = AzureOpenAI(
-        engine=st.secrets["azure_openai"]["llm_deployment_name"],
+        engine=st.secrets["AZURE_OPENAI_LLM_DEPLOYMENT_NAME"],
         model="gpt-4o",
         temperature=0.0,
-        azure_endpoint=st.secrets["azure_openai"]["api_endpoint"],
-        api_key=st.secrets["azure_openai"]["api_key"],
-        api_version=st.secrets["azure_openai"]["api_version"],
+        azure_endpoint=st.secrets["AZURE_OPENAI_API_ENDPOINT"],
+        api_key=st.secrets["AZURE_OPENAI_API_KEY"],
+        api_version=st.secrets["AZURE_OPENAI_API_VERSION"],
     )
 
-    cohere_api_key = os.getenv("COHERE_API_KEY")
+    cohere_api_key = st.secrets["COHERE_API_KEY"]
 
     # with input_typ='search_query'
     embed_model = CohereEmbedding(
