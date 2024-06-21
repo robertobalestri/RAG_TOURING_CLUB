@@ -1,5 +1,5 @@
 # CHANGE IF LOCAL OR CLOUD
-ON_STREAMLIT_CLOUD = False
+ON_STREAMLIT_CLOUD = True
 
 if ON_STREAMLIT_CLOUD:
     __import__('pysqlite3')
