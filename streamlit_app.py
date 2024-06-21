@@ -53,7 +53,6 @@ def main():
     # Load or create the vector store index
     try:
         chroma_collection = db.get_collection("quickstart")
-        st.write("Chroma collection: ", str(chroma_collection))
 
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
